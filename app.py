@@ -2,12 +2,16 @@ from flask import Flask
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy  # => ORM
 from datetime import datetime
+from marshmallow import fields
+from flask_sqlalchemy import SQLAlchemy
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+import enum
 
 app = Flask(__name__)  # instancia de flask
 
 # configuración de la base de datos
 USER_DB = 'root'
-PASS_DB = 'paula10'
+PASS_DB = ''
 URL_DB = 'localhost'
 NAME_DB = 'bellaYActualV3'
 FULL_URL_DB = f'mysql+pymysql://{USER_DB}:{PASS_DB}@{URL_DB}/{NAME_DB}'
@@ -309,39 +313,7 @@ class Cliente(db.Model):
 
     def __str__(self):  
         return str(self.__class__) + ":" + str(self.__dict__)
-
-
-class Factura(db.Model):
-    __tablename__ = 'Factura'
-
-    id = db.Column(db. Integer, primary_key= True)
-    fechaGeneracionFactura = db.Column (db.DateTime)
-    impuestosFactura = db.Column (db.Float)
-    tablaDePagos = db.Column (db.Integer, db.ForeignKey('tablaDePagos.id'))
     
-    TablaDePagos = db.relationship("tablaDePagos", back_populates='Facturas')
-    
-    def __init__(self, fechaGeneracionFactura, impuestosFactura, idPagos):
-        self.fechaGeneracionFactura = fechaGeneracionFactura
-        self.impuestosFactura = impuestosFactura
-        self.tablaDePagos = tablaDePagos
-
-    
-    def json(self):
-        return {
-            'id': self.id,
-            'fechaGeneracionFactura': self.fechaGeneracionFactura,
-            'impuestosFactura': self.impuestosFactura,
-            'tablaDePagos': self.tablaDePagos
-        }
-
-    def __str__(self):  
-        return str(self.__class__) + ":" + str(self.__dict__)
-
-
-    
-
-
 class tablaDePagos (db.Model):
     __tablename__ = 'tablaDePagos'
     
@@ -353,6 +325,7 @@ class tablaDePagos (db.Model):
     venta = db.Column(db. Integer, db.ForeignKey ("Venta.id"))
 
     Venta = db.relationship("Venta", back_populates='tablaDePagos')
+    Factura = db.relationship("Factura", back_populates='tablaDePagos')
     
     def __init__(self, id, metodosDePago, totalAPagar, fechaDePago, estadoPago, Venta):
         self.id= id
@@ -376,6 +349,37 @@ class tablaDePagos (db.Model):
     def __str__(self):  
         return str(self.__class__) + ":" + str(self.__dict__)
 
+
+class Factura(db.Model):
+    __tablename__ = 'Factura'
+
+    id = db.Column(db. Integer, primary_key= True)
+    fechaGeneracionFactura = db.Column (db.DateTime)
+    impuestosFactura = db.Column (db.Float)
+    tablaDePagos = db.Column (db.Integer, db.ForeignKey('tablaDePagos.id'))
+    
+    TablaDePagos = db.relationship("tablaDePagos", back_populates='Factura')
+    
+    def __init__(self, fechaGeneracionFactura, impuestosFactura, idPagos):
+        self.fechaGeneracionFactura = fechaGeneracionFactura
+        self.impuestosFactura = impuestosFactura
+        self.tablaDePagos = tablaDePagos
+
+    
+    def json(self):
+        return {
+            'id': self.id,
+            'fechaGeneracionFactura': self.fechaGeneracionFactura,
+            'impuestosFactura': self.impuestosFactura,
+            'tablaDePagos': self.tablaDePagos
+        }
+
+    def __str__(self):  
+        return str(self.__class__) + ":" + str(self.__dict__)
+
+
+    
+
 class detalleVentaProductos(db.Model):
     __tablename__ = 'detalleVentaProductos'
     id = db. Column(db.Integer, primary_key=True)
@@ -388,9 +392,9 @@ class detalleVentaProductos(db.Model):
     producto = db.Column(db.Integer, db.ForeignKey("Producto.id"))
     cliente = db.Column(db.Integer, db.ForeignKey("Cliente.id"))
   
-    VentaDet = db.relationship("Venta", back_populates="detalleVenta")
-    ProductoDet = db.relationship("Producto", back_populates="detalleVentaProd")
-    ClienteDet = db.relationship("Cliente", back_populates="detalleVentaCli")
+    Venta= db.relationship("Venta", back_populates="detalleVentaProductos")
+    Producto = db.relationship("Producto", back_populates="detalleVentaProductos")
+    Cliente = db.relationship("Cliente", back_populates="detalleVentaProductos")
 
 
     def __init__(self, id, cantidad, precioUnidad, cedula, direccion, telefono, Venta, Producto, Cliente):
@@ -421,3 +425,133 @@ class detalleVentaProductos(db.Model):
     
     def __str__(self):
         return str(self.__class__) + ":" + str(self.__dict__)
+    
+
+
+
+
+
+#Serializacion
+
+db = SQLAlchemy()
+
+
+class EnumADiccionario(fields, Field): #maneja campos personalizados
+    def _serialize(self, value, attr, obj, **kwargs): #metodo -valor, -atributo, -objeto, -argumentos
+        if value is None:  #evita serializar un valor nulo
+            return None
+        return{"llave": value.name, "valor": value.value}
+            
+
+
+class RolSchema(SQLAlchemyAutoSchema):  #1
+    
+    class Meta:
+        model = Rol
+        include_relationships = True
+        load_instance = True
+
+class EmpleadoSchema(SQLAlchemyAutoSchema):   #2
+    
+    rol = fields.Nested(RolSchema)
+
+    class Meta:
+        model = Empleado
+        include_relationships = True
+        load_instance = True
+
+class tablaDePagosSchema (SQLAlchemyAutoSchema): #4
+    
+    Venta = fields.Nested(VentaSchema)
+    
+    class Meta:
+        model = tablaDePagos
+        include_relationships = True
+        load_instance = True
+
+class empresasProveedorasSchema(SQLAlchemyAutoSchema): #4
+    
+    class Meta:
+        model = empresasProveedoras
+        include_relationships = True
+        load_instance = True
+
+class ProveedorSchema(SQLAlchemyAutoSchema): #3
+    
+    empresasProveedoras = fields.Nested(empresasProveedorasSchema) 
+
+    class Meta:
+        model = Proveedor
+        include_relationships = True
+        load_instance = True
+
+
+
+class ClienteSchema(SQLAlchemyAutoSchema):  #5
+    
+    class Meta:
+        model = Cliente
+        include_relationships = True
+        load_instance = True
+
+class CategoriaSchema(SQLAlchemyAutoSchema): #6
+    
+    class Meta:
+        model = Categoria
+        include_relationships = True
+        load_instance = True
+
+class SubcategoriaSchema(SQLAlchemyAutoSchema):  #7
+    
+    Categoria = fields.Nested(CategoriaSchema)
+
+    class Meta:
+        model = Subcategoria
+        include_relationships = True
+        load_instance = True
+
+class ProductoSchema(SQLAlchemyAutoSchema):  #8
+    
+    Proveedor = fields.Nested(ProveedorSchema)
+    Subcategoria = fields.Nested(SubcategoriaSchema)
+
+    class Meta:
+        model = Producto
+        include_relationships = True
+        load_instance = True
+
+
+
+
+class VentaSchema(SQLAlchemyAutoSchema):  #9
+    
+    Empleado = fields.Nested(EmpleadoSchema)
+   
+    class Meta:
+        model = Venta
+        include_relationships = True
+        load_instance = True
+
+
+
+
+class FacturaSchema(SQLAlchemyAutoSchema): #10
+    
+    tablaDePagos= fields.Nested(tablaDePagosSchema)
+
+    class Meta:
+        model = Factura
+        include_relationships = True
+        load_instance = True
+
+
+class detalleVentaProducto(SQLAlchemyAutoSchema):  #11
+    
+    Venta = fields.Nested(VentaSchema)
+    Producto = fields.Nested(ProductoSchema)
+    Cliente = fields.Nested(ClienteSchema)
+
+    class Meta:
+        model = detalleVentaProducto
+        include_relationships = True
+        load_instance = True
