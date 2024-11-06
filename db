@@ -1,0 +1,131 @@
+DROP DATABASE IF EXISTS bellaYActualV3;
+CREATE DATABASE IF NOT EXISTS bellaYActualV3;
+USE bellaYActualV3;
+
+CREATE TABLE empresasProveedoras (
+  idEmpresasProveedoras INT AUTO_INCREMENT COMMENT 'Indicativo por cada empresa', 
+  nombre                VARCHAR(255) COMMENT 'Este campo sirve para guardar el nombre de la empresa', 
+  encargadoDespacho     VARCHAR(255) NOT NULL COMMENT 'El encargado de entregarle los productos al proveedor', 
+  telefonoEmpresa       INT COMMENT 'Número de contacto de la empresa', 
+  direccionEmpresa      VARCHAR(255) COMMENT 'Dirección donde se encuentra la empresa', 
+  CONSTRAINT pkIdEmpresasProveedoras PRIMARY KEY (idEmpresasProveedoras)
+);
+
+CREATE TABLE proveedor (
+  idProveedor               INT NOT NULL COMMENT 'Es el indicativo o la llave primaria del proveedor', 
+  cedula                    INT NOT NULL COMMENT 'Datos del proveedor para poder identificarlo', 
+  nombreProve               VARCHAR(150) NOT NULL COMMENT 'Nombre de quien entrega los productos', 
+  apellidoProv              VARCHAR(150) NOT NULL COMMENT 'Apellidos de quien entrega los productos', 
+  telefonoProv              VARCHAR(25) NULL COMMENT 'Número de contacto del proveedor', 
+  direccionProv             VARCHAR(255) NULL COMMENT 'Dirección del proveedor', 
+  idEmpresasProveedoras     INT NOT NULL COMMENT 'Llave foránea que indica a cuál empresa pertenece cada proveedor', 
+  PRIMARY KEY (idProveedor),
+  CONSTRAINT fkProveedorEmpresasProveedoras FOREIGN KEY (idEmpresasProveedoras) REFERENCES empresasProveedoras(idEmpresasProveedoras)
+);
+
+CREATE TABLE cliente (
+  idCliente        INT NOT NULL AUTO_INCREMENT COMMENT 'Indicativo del cliente en la empresa', 
+  nombresCliente   VARCHAR(100) NOT NULL COMMENT 'Nombres del cliente', 
+  apellidosCliente VARCHAR(100) NOT NULL COMMENT 'Apellidos del cliente', 
+  cedula           VARCHAR(15) UNIQUE NOT NULL COMMENT 'Indicativo gubernamental del cliente', 
+  telefono         VARCHAR(15) NULL COMMENT 'Número telefónico del cliente', 
+  direccion        VARCHAR(255) NULL COMMENT 'Dirección de residencia del cliente', 
+  PRIMARY KEY (idCliente)
+);
+
+CREATE TABLE rol (
+  idRol        INT NOT NULL, 
+  nombre       VARCHAR(150), 
+  descripcion  VARCHAR(255) NULL,
+  PRIMARY KEY (idRol)
+);
+
+CREATE TABLE empleado (
+  idEmpleado             INT AUTO_INCREMENT NOT NULL COMMENT 'Identificador del empleado en la empresa', 
+  nombres                VARCHAR(100) NOT NULL COMMENT 'Nombres del empleado', 
+  apellidos              VARCHAR(100) NOT NULL COMMENT 'Apellidos del empleado', 
+  correo     VARCHAR(100) NOT NULL COMMENT 'Correo electrónico del empleado', 
+  telefono               INT NOT NULL COMMENT 'Teléfono celular del empleado', 
+  fechaContratoInicio    DATE NOT NULL COMMENT 'Fecha de inicio de contrato', 
+  fechaContratoFinalizado DATE NOT NULL COMMENT 'Fecha de finalización de contrato', 
+  idRol                  INT NOT NULL COMMENT 'Llave foránea que indica el rol del empleado', 
+  PRIMARY KEY (idEmpleado),
+  CONSTRAINT fkEmpleadoRol FOREIGN KEY (idRol) REFERENCES rol(idRol)
+);
+
+CREATE TABLE venta (
+  idVenta           INT NOT NULL AUTO_INCREMENT COMMENT 'Indicativo por cada venta', 
+  fechaVenta        TIMESTAMP COMMENT 'Fecha de transacción en la cual se realizó la venta', 
+  totalVenta        DECIMAL(19, 0) COMMENT 'Total de la venta', 
+  idEmpleado        INT NOT NULL,
+  PRIMARY KEY (idVenta),
+  CONSTRAINT fkVentaEmpleado FOREIGN KEY (idEmpleado) REFERENCES empleado(idEmpleado)
+);
+
+CREATE TABLE tablaDePagos (
+  idPagos         INT NOT NULL AUTO_INCREMENT, 
+  metodosDePago   VARCHAR(100), 
+  totalAPagar     DECIMAL(19, 0) NOT NULL, 
+  fechaDePago     TIMESTAMP NOT NULL, 
+  estadoPago      VARCHAR(100) NOT NULL, 
+  idVenta         INT NOT NULL, 
+  PRIMARY KEY (idPagos),
+  CONSTRAINT fkTablaDePagosVenta FOREIGN KEY (idVenta) REFERENCES venta(idVenta)
+);
+
+CREATE TABLE factura (
+  idFactura             INT NOT NULL AUTO_INCREMENT COMMENT 'Indicativo del número de factura', 
+  impuestosFactura      DECIMAL(5,2) COMMENT 'Impuestos que se cobran al cliente', 
+  fechaGeneracionFactura TIMESTAMP NULL COMMENT 'Fecha de generación de la factura', 
+  idPagos               INT NOT NULL,
+  PRIMARY KEY (idFactura),
+  CONSTRAINT fkFacturaTablaDePagos FOREIGN KEY (idPagos) REFERENCES tablaDePagos(idPagos)
+);
+
+CREATE TABLE categoria (
+  idCategoria       INT NOT NULL AUTO_INCREMENT COMMENT 'Indicativo por cada categoría existente', 
+  nombre            VARCHAR(255) NOT NULL COMMENT 'Nombre de la categoría', 
+  descripcion       VARCHAR(255) NULL COMMENT 'Descripción de la categoría', 
+  PRIMARY KEY (idCategoria)
+);
+
+CREATE TABLE subcategoria (
+  idSubcategoria    INT AUTO_INCREMENT NOT NULL, 
+  idCategoria       INT NOT NULL,
+  nombre            VARCHAR(150) COMMENT 'Nombre de la subcategoría', 
+  descripcion       VARCHAR(255) NOT NULL COMMENT 'Descripción de la subcategoría', 
+  PRIMARY KEY (idSubcategoria),
+  CONSTRAINT fkSubcategoriaCategoria FOREIGN KEY (idCategoria) REFERENCES categoria(idCategoria)
+);
+
+CREATE TABLE producto (
+  idProducto           INT AUTO_INCREMENT COMMENT 'Indicativo del producto', 
+  nombreProd           VARCHAR(100) COMMENT 'Nombre del producto', 
+  idSubcategoria       INT NOT NULL COMMENT 'Llave foránea que indica la subcategoría del producto', 
+  medidaProd           INT COMMENT 'Unidad de medida del producto', 
+  unidadMedidaProd     VARCHAR(50) NOT NULL COMMENT 'Tamaño del producto', 
+  costoProd            DECIMAL(19,0), 
+  ivaProd              DECIMAL(3,2) COMMENT 'Impuesto del producto', 
+  porcentajeGanancia   DECIMAL(3,2) COMMENT 'Porcentaje de ganancia del producto', 
+  precioUnidadProd     DECIMAL(19, 2) GENERATED ALWAYS AS (((costoProd * ivaProd) + (costoProd * porcentajeGanancia) + costoProd)) STORED COMMENT 'Precio unitario del producto calculado', 
+  unidadesTotalesProd  INT NOT NULL COMMENT 'Cantidad total de productos en inventario', 
+  marcaProd            VARCHAR(150) NOT NULL COMMENT 'Marca del producto', 
+  estado               VARCHAR(50) NOT NULL COMMENT 'Estado del producto', 
+  idProveedor          INT NOT NULL COMMENT 'Llave foránea que indica el proveedor del producto', 
+  PRIMARY KEY (idProducto),
+  CONSTRAINT fkProductoProveedor FOREIGN KEY (idProveedor) REFERENCES proveedor(idProveedor),
+  CONSTRAINT fkProductoSubcategoria FOREIGN KEY (idSubcategoria) REFERENCES subcategoria(idSubcategoria)
+);
+
+CREATE TABLE detalleVentaProductos (
+  idDetalleVentaProducto INT NOT NULL AUTO_INCREMENT, 
+  idVenta                INT NOT NULL, 
+  idProducto             INT NOT NULL, 
+  cantidad               INT NOT NULL, 
+  precioUnidad           DECIMAL(19, 0), 
+  idCliente              INT NOT NULL, 
+  PRIMARY KEY (idDetalleVentaProducto), 
+  CONSTRAINT fkDetalleVentaProductosVenta FOREIGN KEY (idVenta) REFERENCES venta(idVenta), 
+  CONSTRAINT fkDetalleVentaProductosProducto FOREIGN KEY (idProducto) REFERENCES producto(idProducto),
+  CONSTRAINT fkDetalleVentaProductosCliente FOREIGN KEY (idCliente) REFERENCES cliente(idCliente)
+);
