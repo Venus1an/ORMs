@@ -1,6 +1,6 @@
 from flaskr import create_app
-from flask.modelos.modelos import Rol, Usuario, Empleado, Producto, Categoria, Subcategoria, Venta, Proveedor, EmpresasProveedoras, Cliente, Factura, TablaDePagos
-from .modelos import db
+from flaskr.modelos.modelos import Cliente, Rol, Categoria, Subcategoria, Proveedor, Producto, Venta, Factura, Detalle_Venta_Productos, Tabla_de_Pagos, Empleado, Empresas_Proveedoras
+from flaskr.modelos.modelos import db
 
 
 app = create_app('default')
@@ -8,9 +8,6 @@ app_context = app.app_context()
 app_context.push()
 db.init_app(app)
 db.create_all()
-
-
-
 
 
 with app.app_context():
